@@ -31,19 +31,21 @@ inicio:
 ;;	FIN DEFINICIÓN VARIABLES GLOBALES
 ;;-----------------------------------------
 
+; BYTE PRINCIPAL
 ; 0 -> Borra cola
 ; 1 -> Dcha / Izq o Arriba / Abajo
 ; 2 -> Movimiento X o Y
 ; 3 -> Manzana
+	LD e, 0	; Reset del byte principal
 
 bucle_juego:
-	XOR A
+	; Resets
+	RES 3, e 	; Manzana
+	RES 4, e   	; Choque
+
 	CALL teclado
 	
-	; Borraré la cola antes de copiar el cuerpo porque el valor de ix ya cambia
-	CALL borraCola
-
-	CALL cp_cuerpo
+ 	CALL chk_cabeza
 
 	CALL pintaSerp
 
@@ -61,11 +63,9 @@ bucle_juego:
 ;;				PARTE DE TECLADO
 ;;-----------------------------------------
 teclado:
-	PUSH a
+	PUSH de
 	CALL lee_teclado						; llamo a lee teclado que solo retorna cuando se ha pulsado alguna tecla
-
-
-	JR Z, teclado_fin
+	POP de
 
 ; Compruebo qué BIT está en 1 para saber qué tecla se pulsó
 ; 0 -> Arriba
@@ -73,21 +73,44 @@ teclado:
 ; 2 -> Dcha
 ; 3 -> Izqda
 
-chk_Arriba:
-	BIT 0, a
-	JR NZ, avanzaPos_arriba 					; si tiene un 1 en la posición, paso a pintar la bandera (no hace falta saltar ninguna)
-	
-chk_Abajo:
-	BIT 1, a
-	JR NZ, avanzaPos_abajo 					; si tiene un 1 en la posición, paso a saltar las banderas correspondientes
-	
-chk_Dcha:
+	BIT 2, e 								; Comprubelo si en el byte principal, pone que se mueve en vertical(1) u horizontal(0)
+	JR Z, chk_Y  							; y buscaré una pulsación en el eje contrario
+
+; ----------------
+chk_X:
+
+chk_X_Dcha:
 	BIT 2, a
-	JR NZ, avanzaPos_derecha 					; si tiene un 1 en la posición, paso a saltar las banderas correspondientes
-	
-chk_Izqda:
+	JR Z, chk_X_Izqda
+	; Se ha pulsado la tecla correspondiente
+	RES 2, e 								; Indico que nos movemos en horizontal
+	RES 1, e 								; Indico que nos movemos hacia la derecha
+chk_X_Izqda:
 	BIT 3, a
-	JR NZ, avanzaPos_izqda 					; si tiene un 1 en la posición, paso a saltar las banderas correspondientes
+	JR Z, teclado_fin 						
+	; Se ha pulsado la tecla correspondiente
+	RES 2, e 								; Indico que nos movemos en horizontal
+	SET 1, e 								; Indico que nos movemos hacia la izquierda
+	JR teclado_fin
+
+; ----------------
+
+chk_Y:
+
+chk_Y_Arriba:
+	BIT 0, a
+	JR Z, chk_Y_Abajo
+	; Se ha pulsado la tecla correspondiente
+	SET 2, e 								; Indico que nos movemos en vertical
+	RES 1, e 								; Indico que nos movemos hacia Arriba
+chk_Y_Abajo:
+	BIT 1, a
+	JR Z, teclado_fin
+	; Se ha pulsado la tecla correspondiente
+	SET 2, e 								; Indico que nos movemos en vertical
+	SET 1, e 								; Indico que nos movemos hacia Abajo
+	
+; ----------------
 	
 teclado_fin:
 	;CALL avanzaPos_derecha
@@ -139,40 +162,31 @@ cp_cuerpo_ldir:
 ;;-----------------------------------------
 
 ;;-----------------------------------------
-;;			COMPRUEBA CHOQUES
+;;			CHECK CABEZA
 ;;-----------------------------------------
 
 
 chk_cabeza:
+	BIT 2, e 							; Compruebo si el avance es en X o en Y 
+	CALL NZ, chk_cabeza_avanzaPos_Y
+	CALL Z, chk_cabeza_avanzaPos_X 		
 
-	CALL avanzaPos_derecha
+		
+	BIT 3, e 							; Compruebo si encontré una manzana
+	JR Z, chk_cabeza_mantiene 
+
 	RET
 
-chk_pos_h:
-	LD a, c 				; Cargo C en A
-	CP 0					; Choque pared derecha
-	JP Z, fin
-	CP 32					; Choque pared izqda
-	JP Z, fin
+; ----------------; ----------------
+
+chk_cabeza_avanzaPos_X:
+	BIT 1, e 							; Compruebo si me muevo a izqda o dcha
+	CALL NZ, chk_cabeza_avanzaPos_X_izqda
+	CALL Z, chk_cabeza_avanzaPos_X_dcha
+
 	RET
 
-chk_pos_v:
-	LD a, c 				; Cargo C en A
-	CP 0					; Choque pared arriba
-	JP Z, fin
-	CP 24					; Choque pared abajo
-	JP Z, fin
-	RET
-
-;;-----------------------------------------
-;;			FIN COMPRUEBA CHOQUES
-;;-----------------------------------------
-
-;;-----------------------------------------
-;;			AVANZA POSICIÓN
-;;-----------------------------------------
-
-avanzaPos_derecha:
+chk_cabeza_avanzaPos_X_dcha:
 	; Coordenada Ycabeza
 	; Se queda igual
 
@@ -180,11 +194,13 @@ avanzaPos_derecha:
 	LD c, (iy)			; cojo la Xcabeza anterior
 	INC c 					; xAnterior + 1
 	LD hl, iy 
-	CALL chk_pos_h
-	LD (hl), c
-	RET
+	CALL chk_cabeza_chk_pos_h
+	
+	RET 
 
-avanzaPos_izqda:
+; ----------------
+
+chk_cabeza_avanzaPos_X_izqda:
 	; Coordenada Ycabeza
 	; Se queda igual
 
@@ -192,11 +208,19 @@ avanzaPos_izqda:
 	LD c, (iy)			; cojo la Xcabeza anterior
 	DEC c 					; xAnterior - 1
 	LD hl, iy 
-	CALL chk_pos_h
-	LD (hl), c
+	CALL chk_cabeza_chk_pos_h
 	
 	RET
-avanzaPos_abajo:
+
+; ----------------; ----------------
+
+chk_cabeza_avanzaPos_Y:
+	BIT 1, e 							; Compruebo si me muevo arriba o abajo
+	CALL NZ, chk_cabeza_avanzaPos_Y_abajo
+	CALL Z, chk_cabeza_avanzaPos_Y_arriba
+
+	RET
+chk_cabeza_avanzaPos_Y_abajo:
 	; Coordenada Ycabeza
 	; Se queda igual
 
@@ -205,12 +229,14 @@ avanzaPos_abajo:
 	INC c 					; yAnterior + 1
 	LD hl, iy 
 	INC hl					; avanzo a yCabeza
-	CALL chk_pos_v
-	LD (hl), c
+	CALL chk_cabeza_chk_pos_v
+	;LD (hl), c
 	
 	RET
 
-avanzaPos_arriba:
+; ----------------
+
+chk_cabeza_avanzaPos_Y_arriba:
 	; Coordenada Ycabeza
 	; Se queda igual
 
@@ -219,14 +245,56 @@ avanzaPos_arriba:
 	DEC c 					; yAnterior - 1
 	LD hl, iy 
 	INC hl					; avanzo a yCabeza
-	CALL chk_pos_v
-	LD (hl), c
+	CALL chk_cabeza_chk_pos_v
+	;LD (hl), c
 	
 	RET
 
+; ----------------; ----------------
 
+chk_cabeza_chk_pos_h:
+	LD a, c 				; Cargo C en A
+	CP 0					; Choque pared derecha
+	CALL Z, chk_cabeza_choque
+	CP 32					; Choque pared izqda
+	CALL Z, chk_cabeza_choque
+	RET
+
+; ----------------
+
+chk_cabeza_chk_pos_v:
+	LD a, c 				; Cargo C en A
+	CP 0					; Choque pared arriba
+	CALL Z, chk_cabeza_choque
+	CP 24					; Choque pared abajo
+	CALL Z, chk_cabeza_choque
+
+	RET
+
+; ----------------
+chk_cabeza_choque:
+	SET 4, e
+	RET
+
+chk_cabeza_mantiene:
+	; Cunado no encuentra una manzana paso la nueva coordenada a la cabeza actual
+
+	PUSH bc
+	PUSH hl
+	PUSH de
+	CALL borraCola
+	CALL cp_cuerpo
+	POP de
+	POP hl
+	POP bc
+	LD (hl), c
+
+	RET
+
+chk_cabeza_aumenta:
+	; Cuando encuentra una manzana aumenta de tamaño, nueva cabeza
 ;;-----------------------------------------
-;;			FIN AVANZA POSICIÓN
+;;			FIN CHECK CABEZA
 ;;-----------------------------------------
 
 
@@ -235,7 +303,8 @@ avanzaPos_arriba:
 ;;-----------------------------------------
 pintaSerp:
  	
-	PUSH ix	
+	PUSH ix
+	PUSH de	
 
 	LD ix, serp
 	LD a, (n_serp)
@@ -254,6 +323,7 @@ pintaSerp_bucle_sig:
 	DEC c 						; Decremento el número de elementos
 	JR NZ, pintaSerp_bucle 		; Si quedan elementos sigo
 
+	POP de
 	POP ix
 	
 	RET
