@@ -13,6 +13,7 @@
 	LD ix, serp					; apunto a Xcola
 	JR inicio
 	INCLUDE "teclado.asm"
+	INCLUDE "aleatorio.asm"
 
 inicio:
 	LD a, (n_serp)				; hago la cuenta (n-1)*2 para apuntar al x de la cabeza
@@ -37,22 +38,21 @@ inicio:
 ; 2 -> Movimiento X o Y
 ; 3 -> Manzana
 	LD e, 0	; Reset del byte principal
-
+	; Genero 3 manzanas para comenzar el juego
+	CALL generador
+	CALL generador
+	CALL generador
 bucle_juego:
 	; Resets
 	RES 3, e 	; Manzana
 	RES 4, e   	; Choque
+
 
 	CALL teclado
 	
  	CALL chk_cabeza
 
 	CALL pintaSerp
-
-	
-	
-	
-
 
 	LD b, 100					; hace el pause b veces
 	CALL pausa
@@ -62,6 +62,7 @@ bucle_juego:
 ;;-----------------------------------------
 ;;				PARTE DE TECLADO
 ;;-----------------------------------------
+
 teclado:
 	PUSH de
 	CALL lee_teclado						; llamo a lee teclado que solo retorna cuando se ha pulsado alguna tecla
@@ -365,7 +366,36 @@ calculaCuadro_sumaX:
 ;;		FIN CALCULA CUADRO
 ;;-----------------------------------------
 
+;;-----------------------------------------
+;;				GENERA MANZANAS
+;;-----------------------------------------
 
+generador:
+	PUSH de
+	
+	LD a, 32
+	CALL aleatorio
+	LD e, a
+	
+	LD a, 24
+	CALL aleatorio
+	LD d, a
+
+	CALL calculaCuadro
+
+	LD a, (hl)
+	INC a
+	DEC a 
+	JR NZ, generador 
+
+	LD (hl), 16
+
+	POP de
+	RET
+
+;;-----------------------------------------
+;;				FIN DE GENERA MANZANAS
+;;-----------------------------------------
 
 ;------------------------------------------
 ;               PAUSA - codigo extraido de la plantilla banderas_extendido aunque modificado para una pausa más corta
