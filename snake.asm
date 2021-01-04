@@ -38,6 +38,9 @@ inicio:
 ; 2 -> Movimiento X o Y
 ; 3 -> Manzana
 	
+	; Añado un marco para mejorar la visibilidad
+	LD a, 1
+	out ($FE),a
 	; Genero 3 manzanas para comenzar el juego
 	CALL generador
 	CALL generador
@@ -459,18 +462,18 @@ calculaCuadro_sumaX:
 generador:
 	PUSH de
 	
-	LD a, 32
+	LD a, 31
 	CALL aleatorio
 	LD e, a
 	
-	LD a, 24
+	LD a, 23
 	CALL aleatorio
 	LD d, a
 
 	CALL calculaCuadro
 
-	LD a, (hl)
-	INC a
+	LD a, (hl)					; Compruebo si el cuadrado está en negro
+	INC a 						; Fuerzo la activación de flags
 	DEC a 
 	JR NZ, generador 
 
