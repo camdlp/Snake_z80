@@ -37,11 +37,12 @@ inicio:
 ; 1 -> Dcha / Izq o Arriba / Abajo
 ; 2 -> Movimiento X o Y
 ; 3 -> Manzana
-	LD e, 0	; Reset del byte principal
+	
 	; Genero 3 manzanas para comenzar el juego
 	CALL generador
 	CALL generador
 	CALL generador
+	LD e, 0	; Reset del byte principal
 bucle_juego:
 	; Resets
 	RES 3, e 	; Manzana
@@ -86,6 +87,7 @@ chk_X_Dcha:
 	; Se ha pulsado la tecla correspondiente
 	RES 2, e 								; Indico que nos movemos en horizontal
 	RES 1, e 								; Indico que nos movemos hacia la derecha
+
 chk_X_Izqda:
 	BIT 3, a
 	JR Z, teclado_fin 						
@@ -104,6 +106,7 @@ chk_Y_Arriba:
 	; Se ha pulsado la tecla correspondiente
 	SET 2, e 								; Indico que nos movemos en vertical
 	RES 1, e 								; Indico que nos movemos hacia Arriba
+
 chk_Y_Abajo:
 	BIT 1, a
 	JR Z, teclado_fin
@@ -174,7 +177,7 @@ chk_cabeza:
 
 		
 	BIT 3, e 							; Compruebo si encontré una manzana
-	JR Z, chk_cabeza_mantiene 
+	JP Z, chk_cabeza_mantiene 
 
 	RET
 
@@ -259,6 +262,13 @@ chk_cabeza_chk_pos_h:
 	CALL Z, chk_cabeza_choque
 	CP 32					; Choque pared izqda
 	CALL Z, chk_cabeza_choque
+	
+	PUSH de
+	PUSH hl
+	CALL chk_cabeza_color_x ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente 
+	POP hl
+	POP de
+
 	RET
 
 ; ----------------
@@ -269,7 +279,13 @@ chk_cabeza_chk_pos_v:
 	CALL Z, chk_cabeza_choque
 	CP 24					; Choque pared abajo
 	CALL Z, chk_cabeza_choque
-
+	
+	PUSH de
+	PUSH hl
+	CALL chk_cabeza_color_y ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente
+	POP hl
+	POP de
+	
 	RET
 
 ; ----------------
@@ -277,8 +293,30 @@ chk_cabeza_choque:
 	SET 4, e
 	RET
 
+chk_cabeza_color_y:
+	LD e, (iy)				; Coordenada x
+	LD d, c 				; Coordenada y
+	CALL calculaCuadro
+	LD a, (hl)
+	CP 16 					; Encontró una manzana
+	JR Z, chk_cabeza_aumenta
+	CP 32 					; Encontró su propio cuerpo
+	JR Z, fin 
+	RET
+
+chk_cabeza_color_x:
+	LD e, c					; Coordenada x
+	LD d, (iy+1) 			; Coordenada y
+	CALL calculaCuadro
+	LD a, (hl) 				; Cojo el color de la nueva baldosa
+	CP 16 					; Encontró una manzana
+	JR Z, chk_cabeza_aumenta
+	CP 32 					; Encontró su propio cuerpo
+	JR Z, fin 
+	RET
+
 chk_cabeza_mantiene:
-	; Cunado no encuentra una manzana paso la nueva coordenada a la cabeza actual
+	; Cuando no encuentra una manzana paso la nueva coordenada a la cabeza actual
 
 	PUSH bc
 	PUSH hl
@@ -294,6 +332,8 @@ chk_cabeza_mantiene:
 
 chk_cabeza_aumenta:
 	; Cuando encuentra una manzana aumenta de tamaño, nueva cabeza
+
+	RET
 ;;-----------------------------------------
 ;;			FIN CHECK CABEZA
 ;;-----------------------------------------
