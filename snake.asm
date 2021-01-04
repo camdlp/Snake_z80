@@ -42,9 +42,13 @@ inicio:
 	LD a, 1
 	out ($FE),a
 	; Genero 3 manzanas para comenzar el juego
+	
+	PUSH de
 	CALL generador
 	CALL generador
 	CALL generador
+	POP de
+	
 	LD e, 0	; Reset del byte principal
 bucle_juego:
 	; Resets
@@ -261,7 +265,7 @@ chk_cabeza_avanzaPos_Y_arriba:
 
 chk_cabeza_chk_pos_h:
 	LD a, c 				; Cargo C en A
-	CP 0					; Choque pared derecha
+	CP 255					; Choque pared derecha
 	CALL Z, chk_cabeza_choque
 	CP 32					; Choque pared izqda
 	CALL Z, chk_cabeza_choque
@@ -280,7 +284,7 @@ chk_cabeza_chk_pos_v:
 	LD a, c 				; Cargo C en A
 	CP 0					; Choque pared arriba
 	CALL Z, chk_cabeza_choque
-	CP 24					; Choque pared abajo
+	CP 25					; Choque pared abajo
 	CALL Z, chk_cabeza_choque
 	
 	PUSH de
@@ -293,6 +297,7 @@ chk_cabeza_chk_pos_v:
 
 ; ----------------
 chk_cabeza_choque:
+	JP fin
 	SET 4, e
 	RET
 
@@ -359,8 +364,11 @@ chk_cabeza_aumenta_x:
 	; Aumento n_serp
 	LD hl, n_serp
 	INC (hl)
+	
 	; Genero otra manzana
+	PUSH de
 	CALL generador
+	POP DE
 
 	RET
 chk_cabeza_aumenta_y:
@@ -379,8 +387,11 @@ chk_cabeza_aumenta_y:
 	; Aumento n_serp
 	LD hl, n_serp
 	INC (hl)
+	
 	; Genero otra manzana
+	PUSH de
 	CALL generador
+	POP de
 
 	RET
 ;;-----------------------------------------
@@ -436,7 +447,7 @@ calculaCuadro_calcY:
 	LD a, d
 	LD b, a 					; b es ahora la coordenada y
 	LD de, 32					; de vale 32 (una "fila" del paper)
-	LD hl, dir_atributos
+	LD hl, dir_atributos-32 	; Compenso el desfase que se produce en el bucle calculaCuadro_calcYbucle
 
 calculaCuadro_calcYbucle:			; multiplico por 32*y para situarme en la fila indicarda por y
 	ADD hl, de
@@ -460,26 +471,24 @@ calculaCuadro_sumaX:
 ;;-----------------------------------------
 
 generador:
-	PUSH de
 	
-	LD a, 31
+	
+	LD a, 32
 	CALL aleatorio
 	LD e, a
 	
-	LD a, 23
+	LD a, 24
 	CALL aleatorio
 	LD d, a
 
 	CALL calculaCuadro
 
 	LD a, (hl)					; Compruebo si el cuadrado está en negro
-	INC a 						; Fuerzo la activación de flags
-	DEC a 
+	CP 0
 	JR NZ, generador 
 
 	LD (hl), 16
 
-	POP de
 	RET
 
 ;;-----------------------------------------
@@ -518,6 +527,5 @@ fin:
 
 dir_atributos EQU $5800
 
-ult_mov: db 4
 n_serp: db 4
 serp: db 0, 4, 1, 4, 2, 4, 3, 4
