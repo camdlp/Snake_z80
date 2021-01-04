@@ -172,23 +172,23 @@ cp_cuerpo_ldir:
 
 chk_cabeza:
 	BIT 2, e 							; Compruebo si el avance es en X o en Y 
-	CALL NZ, chk_cabeza_avanzaPos_Y
-	CALL Z, chk_cabeza_avanzaPos_X 		
+	JR NZ, chk_cabeza_avanzaPos_Y
+	JR Z, chk_cabeza_avanzaPos_X 		
 
 		
-	BIT 3, e 							; Compruebo si encontré una manzana
-	JP Z, chk_cabeza_mantiene 
+	;BIT 3, e 							; Compruebo si encontré una manzana
+	;JP Z, chk_cabeza_mantiene 
 
-	RET
+	;RET
 
 ; ----------------; ----------------
 
 chk_cabeza_avanzaPos_X:
 	BIT 1, e 							; Compruebo si me muevo a izqda o dcha
-	CALL NZ, chk_cabeza_avanzaPos_X_izqda
-	CALL Z, chk_cabeza_avanzaPos_X_dcha
+	JR NZ, chk_cabeza_avanzaPos_X_izqda
+	JR Z, chk_cabeza_avanzaPos_X_dcha
 
-	RET
+	;RET
 
 chk_cabeza_avanzaPos_X_dcha:
 	; Coordenada Ycabeza
@@ -198,9 +198,9 @@ chk_cabeza_avanzaPos_X_dcha:
 	LD c, (iy)			; cojo la Xcabeza anterior
 	INC c 					; xAnterior + 1
 	LD hl, iy 
-	CALL chk_cabeza_chk_pos_h
+	JR chk_cabeza_chk_pos_h
 	
-	RET 
+	;RET 
 
 ; ----------------
 
@@ -212,16 +212,16 @@ chk_cabeza_avanzaPos_X_izqda:
 	LD c, (iy)			; cojo la Xcabeza anterior
 	DEC c 					; xAnterior - 1
 	LD hl, iy 
-	CALL chk_cabeza_chk_pos_h
+	JR chk_cabeza_chk_pos_h
 	
-	RET
+	;RET
 
 ; ----------------; ----------------
 
 chk_cabeza_avanzaPos_Y:
 	BIT 1, e 							; Compruebo si me muevo arriba o abajo
-	CALL NZ, chk_cabeza_avanzaPos_Y_abajo
-	CALL Z, chk_cabeza_avanzaPos_Y_arriba
+	JR NZ, chk_cabeza_avanzaPos_Y_abajo
+	JR Z, chk_cabeza_avanzaPos_Y_arriba
 
 	RET
 chk_cabeza_avanzaPos_Y_abajo:
@@ -233,10 +233,10 @@ chk_cabeza_avanzaPos_Y_abajo:
 	INC c 					; yAnterior + 1
 	LD hl, iy 
 	INC hl					; avanzo a yCabeza
-	CALL chk_cabeza_chk_pos_v
+	JR chk_cabeza_chk_pos_v
 	;LD (hl), c
 	
-	RET
+	;RET
 
 ; ----------------
 
@@ -249,10 +249,10 @@ chk_cabeza_avanzaPos_Y_arriba:
 	DEC c 					; yAnterior - 1
 	LD hl, iy 
 	INC hl					; avanzo a yCabeza
-	CALL chk_cabeza_chk_pos_v
+	JR chk_cabeza_chk_pos_v
 	;LD (hl), c
 	
-	RET
+	;RET
 
 ; ----------------; ----------------
 
@@ -265,9 +265,9 @@ chk_cabeza_chk_pos_h:
 	
 	PUSH de
 	PUSH hl
-	CALL chk_cabeza_color_x ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente 
-	POP hl
-	POP de
+	JR chk_cabeza_color_x ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente 
+	;POP hl
+	;POP de
 
 	RET
 
@@ -282,9 +282,9 @@ chk_cabeza_chk_pos_v:
 	
 	PUSH de
 	PUSH hl
-	CALL chk_cabeza_color_y ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente
-	POP hl
-	POP de
+	JR chk_cabeza_color_y ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente
+	;POP hl
+	;POP de
 	
 	RET
 
@@ -299,10 +299,15 @@ chk_cabeza_color_y:
 	CALL calculaCuadro
 	LD a, (hl)
 	CP 16 					; Encontró una manzana
-	JR Z, chk_cabeza_aumenta
+	JR Z, chk_cabeza_aumenta_y
 	CP 32 					; Encontró su propio cuerpo
-	JR Z, fin 
-	RET
+	JP Z, fin
+	
+	; Si no ha chocado ni con paredes ni con el cuerpo y tampoco crece, se mantiene
+	POP hl
+	POP de 
+	JR chk_cabeza_mantiene
+	;RET
 
 chk_cabeza_color_x:
 	LD e, c					; Coordenada x
@@ -310,10 +315,15 @@ chk_cabeza_color_x:
 	CALL calculaCuadro
 	LD a, (hl) 				; Cojo el color de la nueva baldosa
 	CP 16 					; Encontró una manzana
-	JR Z, chk_cabeza_aumenta
+	JR Z, chk_cabeza_aumenta_x
 	CP 32 					; Encontró su propio cuerpo
-	JR Z, fin 
-	RET
+	JP Z, fin 
+	
+	; Si no ha chocado ni con paredes ni con el cuerpo y tampoco crece, se mantiene
+	POP hl
+	POP de 
+	JR chk_cabeza_mantiene
+	;RET
 
 chk_cabeza_mantiene:
 	; Cuando no encuentra una manzana paso la nueva coordenada a la cabeza actual
@@ -330,8 +340,44 @@ chk_cabeza_mantiene:
 
 	RET
 
-chk_cabeza_aumenta:
+chk_cabeza_aumenta_x:
 	; Cuando encuentra una manzana aumenta de tamaño, nueva cabeza
+	; Muevo IY y le asigno los nuevos valores
+	POP hl
+	POP de
+
+	INC iy
+	LD a, (iy) 				; Me sitúo en yIYantigua y la guardo
+	INC iy 					; Me sitúo en xIYnueva y le asigno el nuevo valor
+	LD (iy), c
+	INC iy
+	LD (iy), a 				; Me sitúo en yIYnueva y le asigno el valor guardado anteriormente
+	DEC iy 					; Dejo IY en la posición x
+	; Aumento n_serp
+	LD hl, n_serp
+	INC (hl)
+	; Genero otra manzana
+	CALL generador
+
+	RET
+chk_cabeza_aumenta_y:
+	; Cuando encuentra una manzana aumenta de tamaño, nueva cabeza
+	; Muevo IY y le asigno los nuevos valores
+	POP hl
+	POP de
+
+	LD a, (iy) 				; Me sitúo en xIYantigua y la guardo
+	INC iy 					; Me sitúo en xIYnueva y le asigno el valor guardado
+	INC iy
+	LD (iy), a
+	INC iy
+	LD (iy), c 				; Me sitúo en yIYnueva y le asigno el nuevo valor
+	DEC iy 					; Dejo IY en la posición x
+	; Aumento n_serp
+	LD hl, n_serp
+	INC (hl)
+	; Genero otra manzana
+	CALL generador
 
 	RET
 ;;-----------------------------------------
