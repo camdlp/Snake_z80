@@ -3,17 +3,20 @@
 
 	output "prueba.bin"
 	ORG $8000
-	DI
+	;DI
 
 ;;-----------------------------------------
 ;;		DEFINICIÓN VARIABLES GLOBALES
 ;;-----------------------------------------
 
+declaracion:
+
 	LD sp, 0					; inicialización de pila
 	LD ix, serp					; apunto a Xcola
-	JR inicio
+	JP inicio
 	INCLUDE "teclado.asm"
 	INCLUDE "aleatorio.asm"
+	INCLUDE "chk_cabeza.asm"
 
 inicio:
 	LD a, (n_serp)				; hago la cuenta (n-1)*2 para apuntar al x de la cabeza
@@ -37,6 +40,7 @@ inicio:
 ; 1 -> Dcha / Izq o Arriba / Abajo
 ; 2 -> Movimiento X o Y
 ; 3 -> Manzana
+; 4 -> Choque
 	
 	; Añado un marco para mejorar la visibilidad
 	LD a, 1
@@ -51,9 +55,14 @@ inicio:
 	
 	LD e, 0	; Reset del byte principal
 bucle_juego:
+	
+	; Compruebo que no venga de un choque
+	BIT 4, e
+	JP NZ, fin
+
 	; Resets
 	RES 3, e 	; Manzana
-	RES 4, e   	; Choque
+	;RES 4, e   	; Choque
 
 
 	CALL teclado
@@ -172,231 +181,7 @@ cp_cuerpo_ldir:
 ;;			FIN COPIA CUERPO
 ;;-----------------------------------------
 
-;;-----------------------------------------
-;;			CHECK CABEZA
-;;-----------------------------------------
 
-
-chk_cabeza:
-	BIT 2, e 							; Compruebo si el avance es en X o en Y 
-	JR NZ, chk_cabeza_avanzaPos_Y
-	JR Z, chk_cabeza_avanzaPos_X 		
-
-		
-	;BIT 3, e 							; Compruebo si encontré una manzana
-	;JP Z, chk_cabeza_mantiene 
-
-	;RET
-
-; ----------------; ----------------
-
-chk_cabeza_avanzaPos_X:
-	BIT 1, e 							; Compruebo si me muevo a izqda o dcha
-	JR NZ, chk_cabeza_avanzaPos_X_izqda
-	JR Z, chk_cabeza_avanzaPos_X_dcha
-
-	;RET
-
-chk_cabeza_avanzaPos_X_dcha:
-	; Coordenada Ycabeza
-	; Se queda igual
-
-	; Coordenada Xcabeza
-	LD c, (iy)			; cojo la Xcabeza anterior
-	INC c 					; xAnterior + 1
-	LD hl, iy 
-	JR chk_cabeza_chk_pos_h
-	
-	;RET 
-
-; ----------------
-
-chk_cabeza_avanzaPos_X_izqda:
-	; Coordenada Ycabeza
-	; Se queda igual
-
-	; Coordenada Xcabeza
-	LD c, (iy)			; cojo la Xcabeza anterior
-	DEC c 					; xAnterior - 1
-	LD hl, iy 
-	JR chk_cabeza_chk_pos_h
-	
-	;RET
-
-; ----------------; ----------------
-
-chk_cabeza_avanzaPos_Y:
-	BIT 1, e 							; Compruebo si me muevo arriba o abajo
-	JR NZ, chk_cabeza_avanzaPos_Y_abajo
-	JR Z, chk_cabeza_avanzaPos_Y_arriba
-
-	RET
-chk_cabeza_avanzaPos_Y_abajo:
-	; Coordenada Ycabeza
-	; Se queda igual
-
-	; Coordenada Xcabeza
-	LD c, (iy+1)			; cojo la Ycabeza anterior
-	INC c 					; yAnterior + 1
-	LD hl, iy 
-	INC hl					; avanzo a yCabeza
-	JR chk_cabeza_chk_pos_v
-	;LD (hl), c
-	
-	;RET
-
-; ----------------
-
-chk_cabeza_avanzaPos_Y_arriba:
-	; Coordenada Ycabeza
-	; Se queda igual
-
-	; Coordenada Xcabeza
-	LD c, (iy+1)			; cojo la Ycabeza anterior
-	DEC c 					; yAnterior - 1
-	LD hl, iy 
-	INC hl					; avanzo a yCabeza
-	JR chk_cabeza_chk_pos_v
-	;LD (hl), c
-	
-	;RET
-
-; ----------------; ----------------
-
-chk_cabeza_chk_pos_h:
-	LD a, c 				; Cargo C en A
-	CP 255					; Choque pared derecha
-	CALL Z, chk_cabeza_choque
-	CP 32					; Choque pared izqda
-	CALL Z, chk_cabeza_choque
-	
-	PUSH de
-	PUSH hl
-	JR chk_cabeza_color_x ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente 
-	;POP hl
-	;POP de
-
-	RET
-
-; ----------------
-
-chk_cabeza_chk_pos_v:
-	LD a, c 				; Cargo C en A
-	CP 0					; Choque pared arriba
-	CALL Z, chk_cabeza_choque
-	CP 25					; Choque pared abajo
-	CALL Z, chk_cabeza_choque
-	
-	PUSH de
-	PUSH hl
-	JR chk_cabeza_color_y ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente
-	;POP hl
-	;POP de
-	
-	RET
-
-; ----------------
-chk_cabeza_choque:
-	JP fin
-	SET 4, e
-	RET
-
-chk_cabeza_color_y:
-	LD e, (iy)				; Coordenada x
-	LD d, c 				; Coordenada y
-	CALL calculaCuadro
-	LD a, (hl)
-	CP 16 					; Encontró una manzana
-	JR Z, chk_cabeza_aumenta_y
-	CP 32 					; Encontró su propio cuerpo
-	JP Z, fin
-	
-	; Si no ha chocado ni con paredes ni con el cuerpo y tampoco crece, se mantiene
-	POP hl
-	POP de 
-	JR chk_cabeza_mantiene
-	;RET
-
-chk_cabeza_color_x:
-	LD e, c					; Coordenada x
-	LD d, (iy+1) 			; Coordenada y
-	CALL calculaCuadro
-	LD a, (hl) 				; Cojo el color de la nueva baldosa
-	CP 16 					; Encontró una manzana
-	JR Z, chk_cabeza_aumenta_x
-	CP 32 					; Encontró su propio cuerpo
-	JP Z, fin 
-	
-	; Si no ha chocado ni con paredes ni con el cuerpo y tampoco crece, se mantiene
-	POP hl
-	POP de 
-	JR chk_cabeza_mantiene
-	;RET
-
-chk_cabeza_mantiene:
-	; Cuando no encuentra una manzana paso la nueva coordenada a la cabeza actual
-
-	PUSH bc
-	PUSH hl
-	PUSH de
-	CALL borraCola
-	CALL cp_cuerpo
-	POP de
-	POP hl
-	POP bc
-	LD (hl), c
-
-	RET
-
-chk_cabeza_aumenta_x:
-	; Cuando encuentra una manzana aumenta de tamaño, nueva cabeza
-	; Muevo IY y le asigno los nuevos valores
-	POP hl
-	POP de
-
-	INC iy
-	LD a, (iy) 				; Me sitúo en yIYantigua y la guardo
-	INC iy 					; Me sitúo en xIYnueva y le asigno el nuevo valor
-	LD (iy), c
-	INC iy
-	LD (iy), a 				; Me sitúo en yIYnueva y le asigno el valor guardado anteriormente
-	DEC iy 					; Dejo IY en la posición x
-	; Aumento n_serp
-	LD hl, n_serp
-	INC (hl)
-	
-	; Genero otra manzana
-	PUSH de
-	CALL generador
-	POP DE
-
-	RET
-chk_cabeza_aumenta_y:
-	; Cuando encuentra una manzana aumenta de tamaño, nueva cabeza
-	; Muevo IY y le asigno los nuevos valores
-	POP hl
-	POP de
-
-	LD a, (iy) 				; Me sitúo en xIYantigua y la guardo
-	INC iy 					; Me sitúo en xIYnueva y le asigno el valor guardado
-	INC iy
-	LD (iy), a
-	INC iy
-	LD (iy), c 				; Me sitúo en yIYnueva y le asigno el nuevo valor
-	DEC iy 					; Dejo IY en la posición x
-	; Aumento n_serp
-	LD hl, n_serp
-	INC (hl)
-	
-	; Genero otra manzana
-	PUSH de
-	CALL generador
-	POP de
-
-	RET
-;;-----------------------------------------
-;;			FIN CHECK CABEZA
-;;-----------------------------------------
 
 
 ;;-----------------------------------------
@@ -416,7 +201,8 @@ pintaSerp_bucle:
 	LD e, (ix)					; Coordenada X a calcular
 	CALL calculaCuadro
 
-	LD (hl), 32					; Pinto el cuadro devuelto
+	LD a, (color_serp)
+	LD (hl), a 					; Pinto el cuadro devuelto
 
 pintaSerp_bucle_sig:
 	INC ix						; Paso a la siguiente posición
@@ -522,10 +308,53 @@ paus1:
 ;               FIN PAUSA
 ;------------------------------------------
 
-fin:
-	JR fin
+fin:	
+	LD hl, color_serp
+	LD (hl), 128+32 						; La serpiente parpadea indicando un choque
+	CALL pintaSerp
+	LD b, 255
+	
+	CALL pausa
+	LD b, 255
+	CALL pausa
+	LD HL, 0         ; Origen: la ROM
+  	LD DE, dir_atributos     ; Destino: la VideoRAM
+  	LD BC, 768      ; toda la pantalla
+  	LDIR             ; copiar
+  	
+  	LD b, 255
+  	CALL pausa
+
+  	LD HL, dir_atributos         ; Origen: la ROM
+  	LD (hl), 0
+  	LD DE, dir_atributos+1     ; Destino: la VideoRAM
+  	LD BC, 768      ; toda la pantalla
+  	LDIR 
+
+  	LD b, 255
+  	CALL pausa
+  	
+  	LD hl, color_serp
+  	LD (hl), 32
+
+  	LD hl, serp
+  	LD (hl), 0
+  	INC hl
+  	LD (hl), 4
+  	INC hl
+  	LD (hl), 1
+  	INC hl
+  	LD (hl), 4
+
+  	LD hl, n_serp
+  	LD (hl), 2
+
+  	JP declaracion
+
+	;JR fin
 
 dir_atributos EQU $5800
 
-n_serp: db 4
-serp: db 0, 4, 1, 4, 2, 4, 3, 4
+color_serp: db 32
+n_serp: db 2
+serp: db 0, 4, 1, 4
