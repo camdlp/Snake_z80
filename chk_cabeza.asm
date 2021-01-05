@@ -6,13 +6,7 @@
 chk_cabeza:
 	BIT 2, e 							; Compruebo si el avance es en X o en Y 
 	JR NZ, chk_cabeza_avanzaPos_Y
-	JR Z, chk_cabeza_avanzaPos_X 		
-
-		
-	;BIT 3, e 							; Compruebo si encontré una manzana
-	;JP Z, chk_cabeza_mantiene 
-
-	;RET
+	;JR Z, chk_cabeza_avanzaPos_X 		
 
 ; ----------------; ----------------
 
@@ -21,7 +15,6 @@ chk_cabeza_avanzaPos_X:
 	JR NZ, chk_cabeza_avanzaPos_X_izqda
 	JR Z, chk_cabeza_avanzaPos_X_dcha
 
-	;RET
 
 chk_cabeza_avanzaPos_X_dcha:
 	; Coordenada Ycabeza
@@ -32,8 +25,7 @@ chk_cabeza_avanzaPos_X_dcha:
 	INC c 					; xAnterior + 1
 	LD hl, iy 
 	JR chk_cabeza_chk_pos_h
-	
-	;RET 
+
 
 ; ----------------
 
@@ -46,8 +38,7 @@ chk_cabeza_avanzaPos_X_izqda:
 	DEC c 					; xAnterior - 1
 	LD hl, iy 
 	JR chk_cabeza_chk_pos_h
-	
-	;RET
+
 
 ; ----------------; ----------------
 
@@ -67,9 +58,6 @@ chk_cabeza_avanzaPos_Y_abajo:
 	LD hl, iy 
 	INC hl					; avanzo a yCabeza
 	JR chk_cabeza_chk_pos_v
-	;LD (hl), c
-	
-	;RET
 
 ; ----------------
 
@@ -83,9 +71,6 @@ chk_cabeza_avanzaPos_Y_arriba:
 	LD hl, iy 
 	INC hl					; avanzo a yCabeza
 	JR chk_cabeza_chk_pos_v
-	;LD (hl), c
-	
-	;RET
 
 ; ----------------; ----------------
 
@@ -99,8 +84,6 @@ chk_cabeza_chk_pos_h:
 	PUSH de
 	PUSH hl
 	JR chk_cabeza_color_x ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente 
-	;POP hl
-	;POP de
 
 	RET
 
@@ -116,8 +99,6 @@ chk_cabeza_chk_pos_v:
 	PUSH de
 	PUSH hl
 	JR chk_cabeza_color_y ; Compruebo si la nueva cabeza está en una manzana o ha chocado con la serpiente
-	;POP hl
-	;POP de
 	
 	RET
 
@@ -125,7 +106,7 @@ chk_cabeza_chk_pos_v:
 chk_cabeza_choque:
 	JP fin
 	SET 4, e
-	RET
+
 
 chk_cabeza_color_y:
 	LD e, (iy)				; Coordenada x
@@ -141,7 +122,7 @@ chk_cabeza_color_y:
 	POP hl
 	POP de 
 	JR chk_cabeza_mantiene
-	;RET
+
 
 chk_cabeza_color_x:
 	LD e, c					; Coordenada x
@@ -157,7 +138,7 @@ chk_cabeza_color_x:
 	POP hl
 	POP de 
 	JR chk_cabeza_mantiene
-	;RET
+
 
 chk_cabeza_mantiene:
 	; Cuando no encuentra una manzana paso la nueva coordenada a la cabeza actual

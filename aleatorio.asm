@@ -1,21 +1,22 @@
 ;--------------------------------------------------------------------------------------------
-; Funcion aleatorio - Recibe en A el rango y devuelve en A un numero entre [0,Rango)
+; Funcion aleatorio - Recibe en A el rango y devuelve en A un numero entre (0,Rango)
 ;--------------------------------------------------------------------------------------------
 aleatorio:
-		push hl
-		push bc
+	PUSH hl
+	PUSH bc
 
-		ld b,a 							; Guarda valor del rango
-		ld a,r							; Carga el registro R	
-		ld l,a		
-		and $2F							; Acude a una dirección de la ROM para coger un dato
-		ld h,a							
+	LD b,a 							; Guarda valor del rango
+	LD a,r							; Carga el registro R	
+	LD l,a		
+	AND $2F							; Acude a una dirección de la ROM para coger un dato
+	LD h,a							
 buscaRND:
-		inc hl
-		ld a, (hl)	
-		cp b
-		jr nc, buscaRND 				; Busca el siguiente hasta que sea menor que Rango
-		
-		pop bc	
-		pop hl
-		ret				
+	INC hl
+	LD a, (hl)	
+	CP b
+	JR NC, buscaRND 				; Busca el siguiente hasta que sea menor que Rango
+	CP 0 							; Evita que devuelva 0
+	JR Z, buscaRND
+	POP bc	
+	POP hl
+	RET				

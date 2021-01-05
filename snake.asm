@@ -1,7 +1,33 @@
-	; Carlos Abia Merino, Ingeniería Informática, 2B
-	; Práctica realizada individualmente.
+; Carlos Abia Merino, Ingeniería Informática, 2B
+; Práctica realizada individualmente.
+; 
+; PRÁCTICA FINAL - SNAKE_Z80
+; Instrucciones de uso:
+; - La serpiente se mueve con las flechas del teclado. 
+; - La partida termina cuando la serpiente se choca con una de las paredes o consigo misma
+; - El juego realmente nunca acaba sino que se reinicia automáticamente tras perder.
+; 
+; Consideraciones generales: 
+; - He intentado crear un código legible, ordenado y escalable.
+; - Está desarrollado íntegramente en paper.
+; - En esta versión que se presenta no he encontrado ningún bug.
+; - El juego consta de 3 archivos:
+;	+ snake.asm: principal
+; 	+ teclado.asm: lectura del teclado.
+; 	+ chk_cabeza: comprueba la siguiente cabeza que se añadirá a la serpiente.
+; 	+ pinta_serp: pinta el array que compone la serpiente en pantalla.
+; - El programa viene controlado por un byte auxiliar, este se guardará en el registro E:
+;	+ 0: Borra cola / Crece
+;	+ 1: Derecha | Izquierda || Arriba | Abajo
+;	+ 2: Eje X | Eje Y
+;	+ 3: Manzana
+;	+ 4: Choque
+;	Todos estos bits permiten a las diferentes funciones conocer el estado de cualquier parámetro  
+;	de la serpiente en caso de necesitarlo. Asimismo aún hay bits libres por lo que se podrían 
+;	añadir más parámetros en caso de requerirlo.
+;   
 
-	output "prueba.bin"
+	output "snake.bin"
 	ORG $8000
 	;DI
 
@@ -17,8 +43,12 @@ declaracion:
 	INCLUDE "teclado.asm"
 	INCLUDE "aleatorio.asm"
 	INCLUDE "chk_cabeza.asm"
+	INCLUDE "pinta_serp.asm"
+
+
 
 inicio:
+	; Posiciono el registro IY en la posición x de la cabeza.
 	LD a, (n_serp)				; hago la cuenta (n-1)*2 para apuntar al x de la cabeza
 	DEC a
 	LD h, 0
@@ -29,24 +59,16 @@ inicio:
 	LD hl, serp
 	ADD hl, bc
 	PUSH hl
-	POP iy						; apunta a la Xcabeza
+	POP iy						; apunta a la IYXcabeza
 	
-;;-----------------------------------------
-;;	FIN DEFINICIÓN VARIABLES GLOBALES
-;;-----------------------------------------
 
-; BYTE PRINCIPAL
-; 0 -> Borra cola
-; 1 -> Dcha / Izq o Arriba / Abajo
-; 2 -> Movimiento X o Y
-; 3 -> Manzana
-; 4 -> Choque
 	
-	; Añado un marco para mejorar la visibilidad
+	; Añado un marco azul para mejorar la visibilidad de los límites
 	LD a, 1
 	out ($FE),a
-	; Genero 3 manzanas para comenzar el juego
-	
+
+	; Genero 3 manzanas para comenzar el juego. En caso de querer modificar el número de manzanas simultáneas
+	; bastaría con eliminar o añadir un CALL generador
 	PUSH de
 	CALL generador
 	CALL generador
@@ -54,42 +76,59 @@ inicio:
 	POP de
 	
 	LD e, 0	; Reset del byte principal
+
+;;-----------------------------------------
+;;	FIN DEFINICIÓN VARIABLES GLOBALES
+;;-----------------------------------------
+
+;;-----------------------------------------
+;;			BUCLE DEL JUEGO
+;;-----------------------------------------
 bucle_juego:
 	
-	; Compruebo que no venga de un choque
-	BIT 4, e
-	JP NZ, fin
-
-	; Resets
+	; Resets de bits del byte principal
 	RES 3, e 	; Manzana
-	;RES 4, e   	; Choque
+	; El resto los dejo para saber de dónde viene la serpiente.
 
-
+	; Llamo a la función teclado de teclado.asm, esta, devolverá un BYTE en A codificado
+	; de la siguiente manera (si el bit está a 1 es que se pulsó esa tecla)
+	; 		0        1        2        3
+	; 	 "Arriba" "Abajo"   "Dcha"   "Izda"
 	CALL teclado
 	
+	; Llamo a la función chk_cabeza, esta, usa el byte principal para determinar
+	; dónde irá la siguiente cabeza. Además, cambia el array de la serpiente, 
+	; borra la cola, mueve el cuerpo y posiciona la nueva cabeza. 
  	CALL chk_cabeza
 
+ 	; Llamo a la función pintaSerp, esta, usa el array de la serpiente y su extensión para pintarla 
+ 	; en pantalla.
 	CALL pintaSerp
 
+	; Hago una pausa entre movimientos. Se puede usar para determinar la dificultad. Está puesto en
+	; un punto intermedio 100 pero se podría modificar en el intervalo [40-255] 
 	LD b, 100					; hace el pause b veces
 	CALL pausa
 
+	; Bucle
 	JR bucle_juego
-	
+
+;;-----------------------------------------
+;;			FIN BUCLE DEL JUEGO
+;;-----------------------------------------
+
 ;;-----------------------------------------
 ;;				PARTE DE TECLADO
 ;;-----------------------------------------
 
 teclado:
 	PUSH de
-	CALL lee_teclado						; llamo a lee teclado que solo retorna cuando se ha pulsado alguna tecla
+	CALL lee_teclado						; llamo a lee teclado que me devolverá las pulsaciones en A
 	POP de
 
-; Compruebo qué BIT está en 1 para saber qué tecla se pulsó
-; 0 -> Arriba
-; 1 -> Abajo
-; 2 -> Dcha
-; 3 -> Izqda
+; Dependiendo de en qué dirección me estuviera moviendo previamente (BIT 2 del byte principal), escucharé o no las pulsaciones.
+; Esto evita que la serpiente quiera volver sobre sus propios pasos o iterar innecesariamente para acabar moviéndome en la 
+; misma dirección
 
 	BIT 2, e 								; Comprubelo si en el byte principal, pone que se mueve en vertical(1) u horizontal(0)
 	JR Z, chk_Y  							; y buscaré una pulsación en el eje contrario
@@ -133,30 +172,37 @@ chk_Y_Abajo:
 ; ----------------
 	
 teclado_fin:
-	;CALL avanzaPos_derecha
 	RET
 
 ;;-----------------------------------------
 ;;				FIN PARTE DE TECLADO
 ;;-----------------------------------------
 
+;;-----------------------------------------
+;;				BORRA COLA
+;;-----------------------------------------
 
-;;-----------------------------------------
-;;			AVANZA POSICIÓN SERPIENTE
-;;-----------------------------------------
+; Borro la cola, posicionada en IX
 borraCola:
 	LD e, (ix)
 	LD d, (ix+1)
+	; Paso IXx e IXy a calculaCuadro que me devuelve en HL la dirección que representan
 	CALL calculaCuadro
 	LD (hl), 0					; Pongo el recuadro en negro
 
 	RET
 
 ;;-----------------------------------------
-;;			COPIA CUERPO
+;;				FIN BORRA COLA
 ;;-----------------------------------------
 
-cp_cuerpo:				; (n_serp - 1)*2
+;;-----------------------------------------
+;;			COPIA CUERPO
+;;-----------------------------------------
+; En el array de la serpiente, muevo los datos hacia la izquierda desde la cabeza hasta la cola.
+
+; Calculo (n_serp - 1)*2 para sacar BC (número de datos que se transfieren)
+cp_cuerpo:				
 	LD a, (n_serp)
 	DEC a
 	LD h, 0
@@ -165,14 +211,14 @@ cp_cuerpo:				; (n_serp - 1)*2
 	PUSH hl
 	POP BC
 
-
+; Hago ldir (transferencia de memoria a memoria).
 cp_cuerpo_ldir:
-	PUSH ix
-	POP hl
-	INC hl
-	INC hl
-	PUSH ix
-	POP de
+	PUSH IX
+	POP HL 				
+	INC HL 
+	INC HL  		; Fuente: IX + 2
+	PUSH IX
+	POP DE 			; Destino: IX
 	LDIR
 	
 	RET
@@ -183,47 +229,10 @@ cp_cuerpo_ldir:
 
 
 
-
-;;-----------------------------------------
-;;			PINTA SERPIENTE
-;;-----------------------------------------
-pintaSerp:
- 	
-	PUSH ix
-	PUSH de	
-
-	LD ix, serp
-	LD a, (n_serp)
-	LD c, a 					; cargo el número de elementos en c (HASTA 255 CUADROS DE SERPIENTE)
-
-pintaSerp_bucle:	
-	LD d, (ix+1)				; Coordenada Y a calcular
-	LD e, (ix)					; Coordenada X a calcular
-	CALL calculaCuadro
-
-	LD a, (color_serp)
-	LD (hl), a 					; Pinto el cuadro devuelto
-
-pintaSerp_bucle_sig:
-	INC ix						; Paso a la siguiente posición
-	INC ix
-	DEC c 						; Decremento el número de elementos
-	JR NZ, pintaSerp_bucle 		; Si quedan elementos sigo
-
-	POP de
-	POP ix
-	
-	RET
-
-;;-----------------------------------------
-;;		FIN PINTA SERPIENTE
-;;-----------------------------------------
-
-
 ;;-----------------------------------------
 ;;		CALCULA CUADRO
 ;;-----------------------------------------
-; Calcula la posición de memoria en el paper a partir de coordenadas X,Y dadas
+; Calcula la posición de memoria en el área de atributos a partir de coordenadas X,Y dadas
 ; Le paso en E la coordenada X y en D la coordenada Y a calcular
 
 calculaCuadro:
@@ -235,7 +244,7 @@ calculaCuadro_calcY:
 	LD de, 32					; de vale 32 (una "fila" del paper)
 	LD hl, dir_atributos-32 	; Compenso el desfase que se produce en el bucle calculaCuadro_calcYbucle
 
-calculaCuadro_calcYbucle:			; multiplico por 32*y para situarme en la fila indicarda por y
+calculaCuadro_calcYbucle:			; multiplico por 32*y para situarme en la fila indicada por y
 	ADD hl, de
 	DJNZ calculaCuadro_calcYbucle
 
@@ -255,24 +264,26 @@ calculaCuadro_sumaX:
 ;;-----------------------------------------
 ;;				GENERA MANZANAS
 ;;-----------------------------------------
-
+; Mi generador de manzanas.
 generador:
-	
-	
-	LD a, 32
+	; Saco 2 números aleatorios sin salirme de la pantalla
+	LD a, 32 ; X
 	CALL aleatorio
 	LD e, a
 	
-	LD a, 24
+	LD a, 24; Y
 	CALL aleatorio
 	LD d, a
 
+	; Traduzco las coordenadas. Me devuelve la posición de memoria en HL.
 	CALL calculaCuadro
 
-	LD a, (hl)					; Compruebo si el cuadrado está en negro
+	; Compruebo si la dirección de pantalla está "en negro"
+	LD a, (hl)					
 	CP 0
 	JR NZ, generador 
 
+	; Si está en negro pongo una manzana en dicha dirección
 	LD a, (color_manz)
 	LD (hl), a
 
@@ -305,26 +316,47 @@ paus1:
 											
 	RET 									; Retorna al punto de llamada
 
+
+; Recibe en B el número de pausas "cortas" que debe hacer.
+pausa_larga: 
+	PUSH bc
+	LD b, 255
+	CALL pausa
+	POP bc
+	DJNZ pausa_larga
+	
+	RET
+
 ;------------------------------------------
 ;               FIN PAUSA
 ;------------------------------------------
 
+; Creo una animación que haga entender al usuario que la partida ha terminado
+; y reseteo el juego. 
+
 fin:	
+	LD a, 2 					; Cambio de color el marco a rojo
+	out ($FE),a
+
 	LD hl, color_serp
-	LD (hl), 128+32 						; La serpiente parpadea indicando un choque
+	LD (hl), 128+32 			; La serpiente parpadea indicando un choque
 	CALL pintaSerp
-	LD b, 255
 	
-	CALL pausa
+	LD b, 5
+	CALL pausa_larga
+
 	LD b, 255
 	CALL pausa
+
+	; Paso la información de la ROM a dir_atributos. Esto hará que se pongan colores "aleatorios" en pantalla,
+	; una especie de simulación de pantalla de carga.
 	LD HL, 0         			; Origen: la ROM
   	LD DE, dir_atributos     	; Destino: atributos
-  	LD BC, 768      			; toda la pantalla
-  	LDIR             			; copiar
+  	LD BC, 768      			; Todo el área de atributos
+  	LDIR             			; Copia
   	
-  	LD b, 255
-  	CALL pausa
+  	LD b, 3
+	CALL pausa_larga
 
   	; Limpio toda la pantalla 
   	LD HL, dir_atributos        ; Origen: atributos
@@ -333,8 +365,6 @@ fin:
   	LD BC, 768      
   	LDIR 
 
-  	LD b, 255
-  	CALL pausa
   	
   	; Restauro el color de la serpiente
   	LD hl, color_serp
@@ -357,11 +387,15 @@ fin:
   	; Reinicio el juego
   	JP declaracion
 
-	;JR fin
 
+; Dirección del área de atributos en memoria
 dir_atributos EQU $5800
 
+; Color de la serpiente
 color_serp: db 32+7
+; Color de la manzana
 color_manz: db 64+16
+; Tamaño de la serpiente
 n_serp: db 2
+; Array de la serpiente
 serp: db 0, 4, 1, 4

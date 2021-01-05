@@ -38,4 +38,4 @@ comprueba_Izqda:
  
 comprueba_fin:
 	LD A, D
-	RET
+	RET 					; Devuelvo A
