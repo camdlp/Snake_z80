@@ -132,9 +132,9 @@ chk_cabeza_color_y:
 	LD d, c 				; Coordenada y
 	CALL calculaCuadro
 	LD a, (hl)
-	CP 16 					; Encontró una manzana
+	CP 64+16	 			; Encontró una manzana
 	JR Z, chk_cabeza_aumenta_y
-	CP 32 					; Encontró su propio cuerpo
+	CP 32+7					; Encontró su propio cuerpo
 	JP Z, fin
 	
 	; Si no ha chocado ni con paredes ni con el cuerpo y tampoco crece, se mantiene
@@ -148,9 +148,9 @@ chk_cabeza_color_x:
 	LD d, (iy+1) 			; Coordenada y
 	CALL calculaCuadro
 	LD a, (hl) 				; Cojo el color de la nueva baldosa
-	CP 16 					; Encontró una manzana
+	CP 64+16				; Encontró una manzana
 	JR Z, chk_cabeza_aumenta_x
-	CP 32 					; Encontró su propio cuerpo
+	CP 32+7					; Encontró su propio cuerpo
 	JP Z, fin 
 	
 	; Si no ha chocado ni con paredes ni con el cuerpo y tampoco crece, se mantiene

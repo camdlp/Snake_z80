@@ -174,7 +174,7 @@ cp_cuerpo_ldir:
 	PUSH ix
 	POP de
 	LDIR
-
+	
 	RET
 
 ;;-----------------------------------------
@@ -273,7 +273,8 @@ generador:
 	CP 0
 	JR NZ, generador 
 
-	LD (hl), 16
+	LD a, (color_manz)
+	LD (hl), a
 
 	RET
 
@@ -317,26 +318,29 @@ fin:
 	CALL pausa
 	LD b, 255
 	CALL pausa
-	LD HL, 0         ; Origen: la ROM
-  	LD DE, dir_atributos     ; Destino: la VideoRAM
-  	LD BC, 768      ; toda la pantalla
-  	LDIR             ; copiar
+	LD HL, 0         			; Origen: la ROM
+  	LD DE, dir_atributos     	; Destino: atributos
+  	LD BC, 768      			; toda la pantalla
+  	LDIR             			; copiar
   	
   	LD b, 255
   	CALL pausa
 
-  	LD HL, dir_atributos         ; Origen: la ROM
+  	; Limpio toda la pantalla 
+  	LD HL, dir_atributos        ; Origen: atributos
   	LD (hl), 0
-  	LD DE, dir_atributos+1     ; Destino: la VideoRAM
-  	LD BC, 768      ; toda la pantalla
+  	LD DE, dir_atributos+1     	; Destino: atributos+1
+  	LD BC, 768      
   	LDIR 
 
   	LD b, 255
   	CALL pausa
   	
+  	; Restauro el color de la serpiente
   	LD hl, color_serp
-  	LD (hl), 32
+  	LD (hl), 32+7
 
+  	; Restauro la serpiente original
   	LD hl, serp
   	LD (hl), 0
   	INC hl
@@ -346,15 +350,18 @@ fin:
   	INC hl
   	LD (hl), 4
 
+  	; Restauro el tamaño original de la serpiente
   	LD hl, n_serp
   	LD (hl), 2
 
+  	; Reinicio el juego
   	JP declaracion
 
 	;JR fin
 
 dir_atributos EQU $5800
 
-color_serp: db 32
+color_serp: db 32+7
+color_manz: db 64+16
 n_serp: db 2
 serp: db 0, 4, 1, 4
